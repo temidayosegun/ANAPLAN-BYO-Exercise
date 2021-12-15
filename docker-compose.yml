@@ -1,0 +1,60 @@
+version: "3.5"
+
+services:
+  mysql:
+    image: mysql:5
+    ports:
+      - 3307:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: test123
+      MYSQL_DATABASE: definitions
+    volumes:
+      - ./database:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -ptest123 -e 'select 1'"]
+      interval: 5s
+      retries: 50
+  api:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./server
+    volumes:
+      - /app/node_modules
+      - ./server:/app
+    ports:
+      - 5000:5000
+    depends_on:
+      - mysql
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_ROOT_PASSWORD: test123
+      MYSQL_DATABASE: definitions
+  client:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./client
+    volumes:
+      - /app/node_modules
+      - ./client:/app
+    ports:
+      - 3000:3000
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_ROOT_PASSWORD: test123
+      MYSQL_DATABASE: definitions
+  nginx:
+    depends_on:
+      - api
+      - client
+    restart: always
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./nginx
+    ports:
+      - 80:80
